@@ -310,7 +310,7 @@ class WorkerThread(QThread):
 
     def __init__(self):
         super().__init__()
-    
+
     def run(self):
         try:
             print(f"Video Selecionado: {self.video_path}, Tamanho do Contexto da Tradução: {self.context_size}, Velocidade da fala: {self.min_silence_len}, Target language: {self.target_lang}")
@@ -322,10 +322,10 @@ class WorkerThread(QThread):
                 self.video_path,
                 output_srt,
                 self.context_size,
+                self.target_lang,
+                self.min_silence_len,
                 update_progress=self.update_progress.emit,
-                update_output=lambda x: self.update_output.emit(remove_brackets(x)),
-                min_silence_len=self.min_silence_len,
-                target_lang=self.target_lang
+                update_output=lambda x: self.update_output.emit(remove_brackets(x))
             )
             
             self.update_output.emit(f"Arquivo SRT salvo em: {output_srt}")

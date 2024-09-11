@@ -36,20 +36,25 @@ def extract_audio(video_path):
     audio.write_audiofile("temp_audio.wav")
     return "temp_audio.wav"
 
-def segment_audio(audio_path, min_silence_len=1000, silence_thresh=-40, max_chunk_duration=15000, update_progress=None):
-    print(f"Segmentando áudio: {audio_path}")
+def segment_audio(audio_path, min_silence_len=1000, silence_thresh=None, max_chunk_duration=15000, update_progress=None):
     audio = AudioSegment.from_wav(audio_path)
+    # Calcular a média de dBFS do áudio
+    average_loudness = audio.dBFS
+    print(f"Average loudness of the audio: {average_loudness} dBFS")
+    
+    # Definir o limiar de silêncio com base na média de dBFS
+    silence_thresh = average_loudness + silence_thresh  # Ajustar conforme necessário
+    print(f"Silence threshold set to: {silence_thresh} dBFS")
+    
     total_duration = len(audio)
     chunks = []
     
-    nonsilent_ranges = detect_nonsilent(audio, 
-                                        min_silence_len=min_silence_len, 
-                                        silence_thresh=silence_thresh)
+    nonsilent_ranges = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh)
+    print(f"Debug: detect_nonsilent returned {len(nonsilent_ranges)} ranges")
     
     current_chunk_start = 0
     for start, end in nonsilent_ranges:
         if end - current_chunk_start > max_chunk_duration:
-            # If the current non-silent section exceeds max duration, split it
             while end - current_chunk_start > max_chunk_duration:
                 chunk_end = current_chunk_start + max_chunk_duration
                 chunks.append((current_chunk_start, audio[current_chunk_start:chunk_end]))
@@ -60,8 +65,7 @@ def segment_audio(audio_path, min_silence_len=1000, silence_thresh=-40, max_chun
         
         current_chunk_start = end
         
-        # Progress reporting
-        progress = (end / total_duration) * 20  # 0-20% progress for segmenting
+        progress = (end / total_duration) * 20
         print(f"Progresso da segmentação: {progress:.2f}%")
         if update_progress:
             update_progress(int(progress))
@@ -126,7 +130,6 @@ def create_srt(translations, output_file, max_duration=5000, max_chars=60, min_s
         for i, (start, end, text) in enumerate(translations):
             duration = end - start
             
-            # Verifica se há uma pausa significativa antes do próximo segmento
             next_start = translations[i+1][0] if i+1 < len(translations) else None
             if next_start and next_start - end > min_silence_len:
                 end = min(end + min_silence_len, next_start)
@@ -137,7 +140,6 @@ def create_srt(translations, output_file, max_duration=5000, max_chars=60, min_s
                 chunk_start = start + j * chunk_duration
                 chunk_end = chunk_start + chunk_duration
                 
-                # Ajusta o final do último chunk para coincidir com o final do segmento
                 if j == len(lines) - 1:
                     chunk_end = end
                 
@@ -152,22 +154,17 @@ def get_context(chunks, current_index, context_size):
     return chunks[start:end]
 
 def check_consistency(current_chunk, prev_chunk, next_chunk, target_lang):
-    # Concatena os chunks com um separador especial
     full_text = f"{prev_chunk} [SEP] {current_chunk} [SEP] {next_chunk}"
     
-    # Tokeniza o texto
     inputs = tokenizer(full_text, return_tensors="pt", truncation=True, max_length=512)
     
-    # Gera as previsões do modelo
     with torch.no_grad():
         outputs = model(**inputs)
     
-    # Calcula a perplexidade do texto
     loss = outputs.loss
     perplexity = safe_exp(loss)
     
-    # Define um limiar de perplexidade para considerar inconsistente
-    threshold = 10  # Ajuste este valor conforme necessário
+    threshold = 10
     
     if perplexity > threshold:
         print(f"Possível inconsistência detectada em {target_lang}. Perplexidade: {perplexity.item()}")
@@ -180,7 +177,6 @@ def process_translations(translations, source_lang, target_lang):
         prev_chunk = translations[i-1][2] if i > 0 else ""
         next_chunk = translations[i+1][2] if i < len(translations) - 1 else ""
         
-        # Traduzir para inglês
         text_en = translate_to_english(text, source_lang)
         prev_chunk_en = translate_to_english(prev_chunk, source_lang) if prev_chunk else ""
         next_chunk_en = translate_to_english(next_chunk, source_lang) if next_chunk else ""
@@ -188,23 +184,20 @@ def process_translations(translations, source_lang, target_lang):
         if check_consistency(text_en, prev_chunk_en, next_chunk_en, 'en'):
             print(f"Inconsistência detectada no trecho: {text}")
             
-            # Refinar a tradução em inglês usando o modelo de linguagem
             refined_text_en = refine_translation(text_en)
             
             print(f"Texto original em inglês: {text_en}")
             print(f"Texto refinado em inglês: {refined_text_en}")
             
-            # Verificar se o texto refinado em inglês é mais consistente
             if check_consistency(refined_text_en, prev_chunk_en, next_chunk_en, 'en'):
                 print("O texto refinado ainda apresenta inconsistências. Mantendo o original.")
-                final_text = text  # Manter o texto original no idioma alvo
+                final_text = text
             else:
-                # Traduzir o texto refinado de volta para o idioma alvo
                 final_text = translate_to_target(refined_text_en, target_lang)
                 print(f"Texto refinado traduzido para {target_lang}: {final_text}")
                 print("Texto refinado aceito.")
         else:
-            final_text = text  # Se não houver inconsistência, manter o texto original
+            final_text = text
         
         processed_translations.append((start, end, final_text))
     
@@ -212,7 +205,7 @@ def process_translations(translations, source_lang, target_lang):
 
 def safe_exp(input_tensor):
     if input_tensor is None:
-        return torch.tensor(0.0)  # ou outro valor padrão apropriado
+        return torch.tensor(0.0)
     return torch.exp(input_tensor)
 
 def main(video_path, output_srt, context_size, target_lang, min_silence_len, update_progress=None, update_output=None):
@@ -234,23 +227,20 @@ def main(video_path, output_srt, context_size, target_lang, min_silence_len, upd
         
         total_chunks = len(audio_chunks)
         
-        # Primeira passagem: transcrição
         for i, (start_time, chunk) in enumerate(audio_chunks):
             if update_output:
                 update_output(f"Transcrevendo segmento {i+1}/{total_chunks}")
             if update_progress:
-                update_progress(30 + int((i / total_chunks) * 35))  # 30-65% progress for transcription
+                update_progress(30 + int((i / total_chunks) * 35))
             
             transcription = transcribe_audio(chunk)
             end_time = start_time + len(chunk)
             transcriptions.append((start_time, end_time, transcription))
         
-        # Segunda passagem: tradução com contexto
         for i, (start_time, end_time, current_chunk) in enumerate(transcriptions):
             if update_output:
                 update_output(f"Traduzindo segmento {i+1}/{total_chunks}")
             if update_progress:
-                # Adjust progress calculation: 65% (previous steps) + 35% (translation)
                 progress = 65 + int((i / total_chunks) * 35)
                 update_progress(progress)
 
@@ -264,7 +254,6 @@ def main(video_path, output_srt, context_size, target_lang, min_silence_len, upd
             else:
                 translated_window = context_window
 
-            # Translate only the current chunk to the target language
             current_chunk_translation = translate_to_target(
                 translate_to_english(current_chunk, source_lang) if source_lang != 'en' else current_chunk, 
                 target_lang
@@ -276,7 +265,6 @@ def main(video_path, output_srt, context_size, target_lang, min_silence_len, upd
             print("Nenhuma tradução foi gerada!")
             return
         
-        # Adicione a etapa de verificação de consistência e refinamento
         processed_translations = process_translations(translations, source_lang, target_lang)
         
         if update_output:
@@ -288,7 +276,6 @@ def main(video_path, output_srt, context_size, target_lang, min_silence_len, upd
         if update_progress:
             update_progress(100)
         
-        # Limpa arquivos temporários
         os.remove(audio_path)
         
         print(f"Legendas salvas em {output_srt}")
