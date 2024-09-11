@@ -2,16 +2,12 @@ import sys
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, 
                              QFileDialog, QTextEdit, QProgressBar, QLineEdit, QSpinBox, QLabel, 
-                             QHBoxLayout, QComboBox, QGraphicsOpacityEffect, QSpacerItem, 
-                             QSizePolicy, QScrollArea, QGridLayout)
+                             QHBoxLayout, QComboBox, QGridLayout)
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QFontDatabase, QFont, QPalette, QBrush, QPixmap, QIcon, QColor, QCursor, QPainter
 import tradutor_de_video
 from download_youtube_video import download_youtube_video
 import re
-import tracemalloc
-from PyQt6.QtCore import QTimer
-import gc
 
 def remove_brackets(text):
     return re.sub(r'\[.*?\]', '', text)
@@ -332,7 +328,7 @@ class WorkerThread(QThread):
                 target_lang=self.target_lang
             )
             
-            self.update_output.emit(f"SRT file saved in: {output_srt}")
+            self.update_output.emit(f"Arquivo SRT salvo em: {output_srt}")
         except Exception as e:
             print(f"Debug: Error in WorkerThread: {str(e)}")
             self.update_output.emit(f"Error: {str(e)}")
