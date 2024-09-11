@@ -148,12 +148,12 @@ def create_srt(translations, output_file, max_duration=5000, max_chars=60, min_s
             else:
                 lines = split_long_text(text, max_chars)
                 chunk_duration = duration / len(lines)
-                for i, line in enumerate(lines):
-                    chunk_start = start + i * chunk_duration
+                for j, line in enumerate(lines):
+                    chunk_start = start + j * chunk_duration
                     chunk_end = chunk_start + chunk_duration
                     
                     # Ajusta o final do último chunk para coincidir com o final do segmento
-                    if i == len(lines) - 1:
+                    if j == len(lines) - 1:
                         chunk_end = end
                     
                     srt_file.write(f"{subtitle_index}\n")
@@ -168,25 +168,17 @@ def get_context(chunks, current_index, context_size):
 
 def translate_with_context(chunk, context, target_lang, max_retries=3):
     text_to_translate = chunk[2]
-    context_text = " ".join([c[2] for c in context if c != chunk])
-    full_text = f"{context_text}\n[TRANSLATE]\n{text_to_translate}\n[ENDTRANSLATE]"
+    print(f"Texto a ser traduzido: '{text_to_translate}'")
 
-    source_lang = detect_language(full_text)
+    source_lang = detect_language(text_to_translate)
     translator = GoogleTranslator(source=source_lang, target=target_lang)
     
     for attempt in range(max_retries):
         try:
-            print(f"Traduzindo com contexto: '{text_to_translate[:50]}...'")
-            translation = translator.translate(full_text)
-            
-            match = re.search(r'\[TRANSLATE\](.*?)\[ENDTRANSLATE\]', translation, re.DOTALL)
-            if match:
-                result = match.group(1).strip()
-                print(f"Tradução: '{result[:50]}...'")
-                return result
-            else:
-                print("Não foi possível extrair a tradução. Retornando a tradução completa.")
-                return translation
+            print(f"Traduzindo: '{text_to_translate[:50]}...'")
+            translation = translator.translate(text_to_translate)
+            print(f"Tradução: '{translation[:100]}...'")
+            return translation.strip()
         except Exception as e:
             print(f"Erro na tradução (tentativa {attempt + 1}): {e}")
             if attempt < max_retries - 1:

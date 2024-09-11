@@ -832,4 +832,3 @@ if __name__ == "__main__":
     app.setWindowIcon(window.windowIcon())
     window.show()
     sys.exit(app.exec())
-
