@@ -1,7 +1,7 @@
 import os
 from moviepy.editor import VideoFileClip
 from pydub import AudioSegment
-from pydub.silence import detect_nonsilent
+from pydub.silence import detect_nonsilent, detect_silence
 from faster_whisper import WhisperModel
 import time
 import random
@@ -36,14 +36,58 @@ def extract_audio(video_path):
     audio.write_audiofile("temp_audio.wav")
     return "temp_audio.wav"
 
-def segment_audio(audio_path, min_silence_len=1000, silence_thresh=None, max_chunk_duration=15000, update_progress=None):
+def find_optimal_silence_threshold(audio_path, min_silence_len=1000, step=-1):
     audio = AudioSegment.from_wav(audio_path)
-    # Calcular a média de dBFS do áudio
-    average_loudness = audio.dBFS
-    print(f"Average loudness of the audio: {average_loudness} dBFS")
+    best_ratio_diff = float('inf')
+    best_threshold = None
+    best_ratio = 0
+
+    last_valid_threshold = None  # To track the last valid threshold
+
+    for threshold in range(-10, -60, step):  # Adjust range as needed
+        silences = detect_silence(audio, min_silence_len=min_silence_len, silence_thresh=threshold)
+        nonsilent = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=threshold)
+        
+        total_silence = sum(end - start for start, end in silences)
+        total_nonsilent = sum(end - start for start, end in nonsilent)
+        
+        # Skip if no nonsilent segments are detected
+        if total_nonsilent == 0:
+            continue
+        
+        # Calculate the ratio only if total_silence is greater than zero
+        if total_silence > 0:
+            ratio = total_nonsilent / total_silence
+            ratio_diff = abs(ratio - 10)  # Adjust based on your target ratio
+            
+            print(f"Threshold: {threshold} dB, Ratio (nonsilent/silent): {ratio:.2f}")
+            
+            if ratio_diff < best_ratio_diff:
+                best_ratio_diff = ratio_diff
+                best_threshold = threshold
+                best_ratio = ratio
+                last_valid_threshold = threshold  # Update last valid threshold
+        else:
+            # If total_silence is zero, we can still consider the threshold
+            print(f"Threshold: {threshold} dB, No silence detected, ratio is undefined.")
+            if last_valid_threshold is not None and threshold < last_valid_threshold:
+                print(f"\nBest threshold: {best_threshold} dB with ratio: {best_ratio:.2f}")
+                return best_threshold
+
+    # Final check to return the best threshold found
+    if best_threshold is not None:
+        print(f"\nBest threshold: {best_threshold} dB with ratio: {best_ratio:.2f}")
+    else:
+        print("\nNo valid threshold found.")
     
+    return best_threshold
+
+def segment_audio(audio_path, min_silence_len=600, silence_thresh=None, max_chunk_duration=15000, update_progress=None):
+    audio = AudioSegment.from_wav(audio_path)
+
     # Definir o limiar de silêncio com base na média de dBFS
-    silence_thresh = average_loudness + silence_thresh  # Ajustar conforme necessário
+    if silence_thresh is None:  # Verifique se silence_thresh é None
+        silence_thresh = find_optimal_silence_threshold(audio) # Ajuste conforme necessário
     print(f"Silence threshold set to: {silence_thresh} dBFS")
     
     total_duration = len(audio)
@@ -51,7 +95,8 @@ def segment_audio(audio_path, min_silence_len=1000, silence_thresh=None, max_chu
     
     nonsilent_ranges = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh)
     print(f"Debug: detect_nonsilent returned {len(nonsilent_ranges)} ranges")
-    
+    print(f"{(nonsilent_ranges)}")
+
     current_chunk_start = 0
     for start, end in nonsilent_ranges:
         if end - current_chunk_start > max_chunk_duration:
@@ -96,9 +141,9 @@ def translate_to_target(text, target_lang):
     translator = GoogleTranslator(source='en', target=target_lang)
     return translator.translate(text)
 
-def refine_translation(translation):
-    prompt = f"Refine this translation, improving fluency and coherence: {translation}"
-    refined = nlp(prompt, max_length=500, do_sample=False)[0]['generated_text']
+def refine_translation(translation, prev_chunk, next_chunk):
+    prompt = f"You are creating a subtitle chunk. This is the previous and subsequent context of this chunk, respectively: {prev_chunk} and {next_chunk}. Considering the context, refine this translation, improving fluency and coherence: {translation}. Translate only this segment trying to keep it as faithful to the original sentence as possible. Be aware that the text is coming from a video, so it may contain some errors and you might have to correct ponctuation and grammar."
+    refined = nlp(prompt, max_length=100, do_sample=False)[0]['generated_text']
     return refined
 
 def format_time(milliseconds):
@@ -113,7 +158,7 @@ def split_long_text(text, max_chars=50):
     current_line = []
     current_length = 0
     for word in words:
-        if current_length + len(word) + 1 > max_chars and current_line:
+        if current_length + len(word) - 1 > max_chars and current_line:
             lines.append(' '.join(current_line))
             current_line = []
             current_length = 0
@@ -184,7 +229,7 @@ def process_translations(translations, source_lang, target_lang):
         if check_consistency(text_en, prev_chunk_en, next_chunk_en, 'en'):
             print(f"Inconsistência detectada no trecho: {text}")
             
-            refined_text_en = refine_translation(text_en)
+            refined_text_en = refine_translation(text_en, prev_chunk_en, next_chunk_en)
             
             print(f"Texto original em inglês: {text_en}")
             print(f"Texto refinado em inglês: {refined_text_en}")
@@ -219,8 +264,12 @@ def main(video_path, output_srt, context_size, target_lang, min_silence_len, upd
         audio_path = extract_audio(video_path)
         
         if update_output:
-            update_output("Segmentando audio...")
-        audio_chunks = segment_audio(audio_path, min_silence_len=min_silence_len, max_chunk_duration=15000, update_progress=update_progress)
+            update_output("Determinando o melhor limiar de silêncio...")
+        optimal_threshold = find_optimal_silence_threshold(audio_path, min_silence_len=min_silence_len)
+        
+        if update_output:
+            update_output(f"Segmentando audio com limiar de {optimal_threshold} dB...")
+        audio_chunks = segment_audio(audio_path, min_silence_len=min_silence_len, silence_thresh=optimal_threshold, max_chunk_duration=15000, update_progress=update_progress)
         
         transcriptions = []
         translations = []
