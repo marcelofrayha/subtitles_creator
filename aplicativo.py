@@ -15,14 +15,13 @@ def remove_brackets(text):
 # Dicionário de traduções
 translations = {
     "pt": {
-        "title": "Pedra Rosetta\nAlimentada por IA",
+        "title": "Pedra Rosetta\nAlimentada pela IA",
         "youtube_url": "Digite a URL do YouTube",
         "download_button": "Baixar Vídeo do YouTube",
         "or_label": "OU",
         "select_video": "Selecionar Vídeo",
         "config_label": "Configure sua legenda",
         "language_label": "Idioma da legenda:",
-        "context_label": "Tamanho do contexto (0-10):",
         "silence_label": "Duração mínima de silêncio (ms):",
         "create_subtitles": "Criar Legendas"
     },
@@ -34,7 +33,6 @@ translations = {
         "select_video": "Select Video",
         "config_label": "Configure your subtitle",
         "language_label": "Subtitle language:",
-        "context_label": "Context size (0-10):",
         "silence_label": "Minimum silence duration (ms):",
         "create_subtitles": "Create Subtitles"
     },
@@ -46,7 +44,6 @@ translations = {
         "select_video": "Seleccionar video",
         "config_label": "Configurar subtítulo",
         "language_label": "Idioma del subtítulo:",
-        "context_label": "Tamaño del contexto (0-10):",
         "silence_label": "Duración mínima del silencio (ms):",
         "create_subtitles": "Crear subtítulos"
     },
@@ -58,7 +55,6 @@ translations = {
         "select_video": "Sélectionner la vidéo",
         "config_label": "Configurer le sous-titre",
         "language_label": "Langue du sous-titre :",
-        "context_label": "Taille du contexte (0-10) :",
         "silence_label": "Durée minimale du silence (ms) :",
         "create_subtitles": "Créer des sous-titres"
     },
@@ -70,7 +66,6 @@ translations = {
         "select_video": "Video auswählen",
         "config_label": "Untertitel konfigurieren",
         "language_label": "Untertitelsprache:",
-        "context_label": "Kontextgröße (0-10):",
         "silence_label": "Minimale Stille-Dauer (ms):",
         "create_subtitles": "Untertitel erstellen"
     },
@@ -82,7 +77,6 @@ translations = {
         "select_video": "Seleziona video",
         "config_label": "Configura sottotitoli",
         "language_label": "Lingua dei sottotitoli:",
-        "context_label": "Dimensione del contesto (0-10):",
         "silence_label": "Durata minima del silenzio (ms):",
         "create_subtitles": "Crea sottotitoli"
     },
@@ -94,7 +88,6 @@ translations = {
         "select_video": "Selecteer video",
         "config_label": "Configureer ondertiteling",
         "language_label": "Ondertiteltaal:",
-        "context_label": "Contextgrootte (0-10):",
         "silence_label": "Minimale stilte duur (ms):",
         "create_subtitles": "Maak ondertiteling"
     },
@@ -106,7 +99,6 @@ translations = {
         "select_video": "Wybierz wideo",
         "config_label": "Skonfiguruj napisy",
         "language_label": "Język napisów:",
-        "context_label": "Rozmiar kontekstu (0-10):",
         "silence_label": "Minimalna długość ciszy (ms):",
         "create_subtitles": "Utwórz napisy"
     },
@@ -118,7 +110,6 @@ translations = {
         "select_video": "Выбрать видео",
         "config_label": "Настроить субтитры",
         "language_label": "Язык субтитров:",
-        "context_label": "Размер контекста (0-10):",
         "silence_label": "Минимальная длительность тишины (мс):",
         "create_subtitles": "Создать субтитры"
     },
@@ -130,7 +121,6 @@ translations = {
         "select_video": "ビデオを選択",
         "config_label": "字幕を設定",
         "language_label": "字幕言語:",
-        "context_label": "コンテキストサイズ (0-10):",
         "silence_label": "最小静寂時間 (ms):",
         "create_subtitles": "字幕を作成"
     },
@@ -142,7 +132,6 @@ translations = {
         "select_video": "选择视频",
         "config_label": "配置字幕",
         "language_label": "字幕语言:",
-        "context_label": "上下文大小 (0-10):",
         "silence_label": "最小静音持续时间 (毫秒):",
         "create_subtitles": "创建字幕"
     },
@@ -154,7 +143,6 @@ translations = {
         "select_video": "選擇影片",
         "config_label": "配置字幕",
         "language_label": "字幕語言:",
-        "context_label": "上下文大小 (0-10):",
         "silence_label": "最小靜音持續時間 (毫秒):",
         "create_subtitles": "創建字幕"
     },
@@ -166,7 +154,6 @@ translations = {
         "select_video": "비디오 선택",
         "config_label": "자막 설정",
         "language_label": "자막 언어:",
-        "context_label": "컨텍스트 크기 (0-10):",
         "silence_label": "최소 침묵 시간 (ms):",
         "create_subtitles": "자막 생성"
     },
@@ -178,7 +165,6 @@ translations = {
         "select_video": "اختر فيديو",
         "config_label": "تكوين الترجمة",
         "language_label": "لغة الترجمة:",
-        "context_label": "حجم السياق (0-10):",
         "silence_label": "الحد الأدنى لمدة الصمت (مللي ثانية):",
         "create_subtitles": "إنشاء ترجمة"
     },
@@ -190,7 +176,6 @@ translations = {
         "select_video": "वीडियो चुनें",
         "config_label": "सबटाइटल कॉन्फ़िगर करें",
         "language_label": "सबटाइटल भाषा:",
-        "context_label": "संदर्भ आकार (0-10):",
         "silence_label": "न्यूनतम चुपचाप अवधि (मिलीसेकंड):",
         "create_subtitles": "सबटाइटल बनाएं"
     },
@@ -202,7 +187,6 @@ translations = {
         "select_video": "Video seç",
         "config_label": "Altyazıyı yapılandır",
         "language_label": "Altyazı dil:",
-        "context_label": "Bağlam boyutu (0-10):",
         "silence_label": "Minimum sessizlik süresi (ms):",
         "create_subtitles": "Altyazı oluştur"
     },
@@ -214,7 +198,6 @@ translations = {
         "select_video": "Välj video",
         "config_label": "Konfigurerera undertexter",
         "language_label": "Undertextspråk:",
-        "context_label": "Kontekststorlek (0-10):",
         "silence_label": "Minsta tystnadslängd (ms):",
         "create_subtitles": "Skapa undertexter"
     },
@@ -226,7 +209,6 @@ translations = {
         "select_video": "Vælg video",
         "config_label": "Konfigurer undertekster",
         "language_label": "Undertekstsprog:",
-        "context_label": "Kontekststørrelse (0-10):",
         "silence_label": "Minimum stilhedslængde (ms):",
         "create_subtitles": "Opret undertekster"
     },
@@ -238,7 +220,6 @@ translations = {
         "select_video": "Velg video",
         "config_label": "Konfigurer undertekster",
         "language_label": "Undertekstspråk:",
-        "context_label": "Kontekststørrelse (0-10):",
         "silence_label": "Minimum stilhetstid (ms):",
         "create_subtitles": "Opprett undertekster"
     },
@@ -250,7 +231,6 @@ translations = {
         "select_video": "Valitse video",
         "config_label": "Määritä tekstitys",
         "language_label": "Tekstityskieli:",
-        "context_label": "Kontekstin koko (0-10):",
         "silence_label": "Vähintän vauva-aika (ms):",
         "create_subtitles": "Luo tekstitys"
     },
@@ -262,7 +242,6 @@ translations = {
         "select_video": "Επιλέξτε βίντεο",
         "config_label": "Διαμορφώστε το υπότιτλο",
         "language_label": "Γλώσσα υποτίτλων:",
-        "context_label": "Μέγεθος περιβάλλοντος (0-10):",
         "silence_label": "Ελάχιστη διάρκεια σιγουριάς (ms):",
         "create_subtitles": "Δημιουργήστε υπότιτλους"
     },
@@ -274,7 +253,6 @@ translations = {
         "select_video": "בחר וידאו",
         "config_label": "הגדר כתוביות",
         "language_label": "שפת הכתוביות:",
-        "context_label": "גודל ההקשר (0-10):",
         "silence_label": "זמן השתקה מינימלי (מילישניות):",
         "create_subtitles": "צור כתוביות"
     },
@@ -286,7 +264,6 @@ translations = {
         "select_video": "Elektu videon",
         "config_label": "Agordu subtitrojn",
         "language_label": "Subtitra lingvo:",
-        "context_label": "Kunteksto grandeco (0-10):",
         "silence_label": "Minimuma silenta daŭro (ms):",
         "create_subtitles": "Krei subtitrojn"
     },
@@ -298,7 +275,6 @@ translations = {
         "select_video": "Elige pelliculam",
         "config_label": "Configura subscriptiones",
         "language_label": "Lingua subscriptionum:",
-        "context_label": "Magnitudo contextus (0-10):",
         "silence_label": "Minimum tempus silentii (ms):",
         "create_subtitles": "Crea subscriptiones"
     }
@@ -313,7 +289,7 @@ class WorkerThread(QThread):
 
     def run(self):
         try:
-            print(f"Video Selecionado: {self.video_path}, Tamanho do Contexto da Tradução: {self.context_size}, Velocidade da fala: {self.min_silence_len}, Target language: {self.target_lang}")
+            print(f"Video Selecionado: {self.video_path}, Velocidade da fala: {self.min_silence_len}, Target language: {self.target_lang}")
             video_name = os.path.splitext(os.path.basename(self.video_path))[0]
             downloads_folder = os.path.join(os.path.expanduser('~'), 'Downloads')
             output_srt = os.path.join(downloads_folder, f"{video_name}.srt")
@@ -321,9 +297,9 @@ class WorkerThread(QThread):
             tradutor_de_video.main(
                 self.video_path,
                 output_srt,
-                self.context_size,
                 self.target_lang,
                 self.min_silence_len,
+                silence_thresh=self.silence_thresh,
                 update_progress=self.update_progress.emit,
                 update_output=lambda x: self.update_output.emit(remove_brackets(x))
             )
@@ -402,10 +378,11 @@ class MainWindow(QMainWindow):
         self.config_label = QLabel()
         self.language_label = QLabel()
         self.language_combo = QComboBox()
-        self.context_label = QLabel()
-        self.context_spinbox = QSpinBox()
         self.silence_label = QLabel()
         self.silence_spinbox = QSpinBox()
+        self.silence_thresh_label = QLabel("Limiar de silêncio (dB):")
+        self.silence_thresh_spinbox = QSpinBox()
+        self.silence_thresh_spinbox.setRange(-60, 0)  # Set range to allow negative values
         self.process_button = QPushButton()
         
         # Configurar widgets
@@ -453,16 +430,16 @@ class MainWindow(QMainWindow):
         config_layout.addWidget(self.config_label, 0, 0, 1, 2)
         config_layout.addWidget(self.language_label, 1, 0)
         config_layout.addWidget(self.language_combo, 1, 1)
-        config_layout.addWidget(self.context_label, 2, 0)
-        config_layout.addWidget(self.context_spinbox, 2, 1)
-        config_layout.addWidget(self.silence_label, 3, 0)
-        config_layout.addWidget(self.silence_spinbox, 3, 1)
+        config_layout.addWidget(self.silence_label, 2, 0)
+        config_layout.addWidget(self.silence_spinbox, 2, 1)
+        config_layout.addWidget(self.silence_thresh_label, 3, 0)
+        config_layout.addWidget(self.silence_thresh_spinbox, 3, 1)
         
         # Centralize os labels
         config_layout.setAlignment(self.config_label, Qt.AlignmentFlag.AlignCenter)
         config_layout.setAlignment(self.language_label, Qt.AlignmentFlag.AlignRight)
-        config_layout.setAlignment(self.context_label, Qt.AlignmentFlag.AlignRight)
         config_layout.setAlignment(self.silence_label, Qt.AlignmentFlag.AlignRight)
+        config_layout.setAlignment(self.silence_thresh_label, Qt.AlignmentFlag.AlignRight)
 
         self.layout.addLayout(config_layout)
 
@@ -552,11 +529,7 @@ class MainWindow(QMainWindow):
         """
         self.youtube_url_input.setStyleSheet(input_style)
         self.language_combo.setStyleSheet(input_style)
-        self.context_spinbox.setStyleSheet(input_style)
         self.silence_spinbox.setStyleSheet(input_style)
-        self.context_spinbox.setValue(2)  # Define o valor padrão para 2
-        self.context_spinbox.setRange(0, 10)  # Mantém o intervalo de 0 a 10
-        self.context_spinbox.setSingleStep(1)  # Mantém o passo em 1
 
         # Para a duração mínima de silêncio
         self.silence_spinbox.setRange(100, 2000)  # Ajuste o intervalo conforme necessário
@@ -569,11 +542,10 @@ class MainWindow(QMainWindow):
         self.or_label.setStyleSheet("font-weight: bold; color: #333;")
 
         # Configuração dos labels de configuração
-        config_font = QFont("Arial", 11)
+        config_font = QFont("Papyrus", 12)
         config_font.setBold(True)
         self.config_label.setFont(config_font)
         self.language_label.setFont(config_font)
-        self.context_label.setFont(config_font)
         self.silence_label.setFont(config_font)
 
         # Configuração da barra de progresso
@@ -622,7 +594,6 @@ class MainWindow(QMainWindow):
         """
         self.config_label.setStyleSheet(config_label_style)
         self.language_label.setStyleSheet(config_label_style)
-        self.context_label.setStyleSheet(config_label_style)
         self.silence_label.setStyleSheet(config_label_style)
 
         # Ajustar o tamanho da fonte para o QComboBox e QSpinBox
@@ -633,20 +604,18 @@ class MainWindow(QMainWindow):
             }}
         """
         self.language_combo.setStyleSheet(self.language_combo.styleSheet() + input_style)
-        self.context_spinbox.setStyleSheet(input_style)
         self.silence_spinbox.setStyleSheet(input_style)
 
         # Ajustar o tamanho dos widgets para acomodar o texto maior
         self.language_combo.setMinimumHeight(int(40 * 1.4))
-        self.context_spinbox.setMinimumHeight(int(40 * 1.4))
         self.silence_spinbox.setMinimumHeight(int(40 * 1.4))
+        self.silence_thresh_spinbox.setMinimumHeight(int(40 * 1.4)) 
 
          # Definir a fonte diretamente para os QLabels
         papyrus_font = QFont("Papyrus", larger_font_size)
         papyrus_font.setBold(True)
         self.config_label.setFont(papyrus_font)
         self.language_label.setFont(papyrus_font)
-        self.context_label.setFont(papyrus_font)
         self.silence_label.setFont(papyrus_font)
 
     def update_language(self, lang):
@@ -664,7 +633,6 @@ class MainWindow(QMainWindow):
         self.or_label.setText(trans["or_label"])
         self.config_label.setText(trans["config_label"])
         self.language_label.setText(trans["language_label"])
-        self.context_label.setText(trans["context_label"])
         self.silence_label.setText(trans["silence_label"])
         self.process_button.setText(trans["create_subtitles"])
 
@@ -740,16 +708,16 @@ class MainWindow(QMainWindow):
             return
 
         self.reset_progress_bar() 
-        context_size = self.context_spinbox.value()
         min_silence_len = self.silence_spinbox.value()
         target_lang = self.get_target_lang_code()
+        silence_thresh = self.silence_thresh_spinbox.value() if self.silence_thresh_spinbox.value() != 0 else None
         
         try:
             self.worker = WorkerThread()
             self.worker.video_path = self.video_path
-            self.worker.context_size = context_size
             self.worker.min_silence_len = min_silence_len
             self.worker.target_lang = target_lang
+            self.worker.silence_thresh = silence_thresh
             
             self.worker.update_progress.connect(self.update_progress)
             self.worker.update_output.connect(self.update_output)

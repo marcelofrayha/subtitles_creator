@@ -5,29 +5,95 @@ from pydub.silence import detect_nonsilent, detect_silence
 from faster_whisper import WhisperModel
 import time
 import random
-from deep_translator import GoogleTranslator
-from langdetect import detect
-import re
-from transformers import pipeline
-from transformers import AutoTokenizer, AutoModelForMaskedLM, AutoModelForSeq2SeqLM
 import torch
+from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
+import re
+import langid
+import nltk
+from nltk.tokenize import sent_tokenize
 
-# Inicialize o tradutor
-translator = GoogleTranslator(source='en', target='pt')
+nltk.download('punkt_tab', quiet=True)
 
-# Configura o modelo Whisper
+# Initialize the translator
+m2m_model = None
+m2m_tokenizer = None
+
+def initialize_translator():
+    global m2m_model, m2m_tokenizer
+    model_name = 'facebook/m2m100_418M'  # You can also use 'facebook/m2m100_1.2B' for better quality but slower performance
+    m2m_model = M2M100ForConditionalGeneration.from_pretrained(model_name)
+    m2m_tokenizer = M2M100Tokenizer.from_pretrained(model_name)
+
+def translate_to_target(text, target_lang, source_lang):
+    try:
+        if source_lang == target_lang:
+            return text
+        
+        global m2m_model, m2m_tokenizer
+        if m2m_model is None or m2m_tokenizer is None:
+            initialize_translator()
+        
+        m2m_tokenizer.src_lang = source_lang
+        encoded = m2m_tokenizer(text, return_tensors="pt")
+        generated_tokens = m2m_model.generate(**encoded, forced_bos_token_id=m2m_tokenizer.get_lang_id(target_lang))
+        translated_text = m2m_tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
+        
+        print(f"Texto original ({source_lang}): {text}")
+        print(f"Texto traduzido ({target_lang}): {translated_text}")
+        
+        return translated_text
+    except Exception as e:
+        print(f"Erro na tradução: {str(e)}")
+        return text  # Retorna o texto original em caso de erro
+
+# Configure the Whisper model
 whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
 
-# Carregue o modelo e o tokenizador uma vez no início do script
-tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
-model = AutoModelForMaskedLM.from_pretrained("bert-base-multilingual-cased")
+def normalize_lang_code(lang_code):
+    """Normalize language codes to match the expected format."""
+    lang_code = lang_code.lower()
+    print(f"Normalizando idioma: {lang_code}")
+    if lang_code == 'zh_cn':
+        return 'zh'
+    if lang_code == 'zh_tw':
+        return 'zh'
+    else:
+        return lang_code
 
-model_name = "facebook/bart-large-cnn"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+def process_translations(translations, source_lang, target_lang, max_phrase_duration=60000):
+    processed_translations = []
+    current_phrase = []
+    current_phrase_duration = 0
 
-# Crie um pipeline para geração de texto
-nlp = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+    for i, (start, end, text) in enumerate(translations):
+        current_phrase.append((start, end, text))
+        current_phrase_duration += end - start
+
+        if current_phrase_duration >= max_phrase_duration or i == len(translations) - 1:
+            full_text = ' '.join(segment[2] for segment in current_phrase)
+            sentences = sent_tokenize(full_text)
+            translated_text = ' '.join([translate_to_target(sent, target_lang, source_lang) for sent in sentences])
+            
+            translated_words = translated_text.split()
+            original_word_counts = [len(segment[2].split()) for segment in current_phrase]
+            total_original_words = sum(original_word_counts)
+            
+            word_index = 0
+            for (start, end, original_text), original_word_count in zip(current_phrase, original_word_counts):
+                proportion = original_word_count / total_original_words
+                segment_word_count = max(1, int(len(translated_words) * proportion))
+                
+                segment_translated = ' '.join(translated_words[word_index:word_index + segment_word_count])
+                word_index += segment_word_count
+                
+                processed_translations.append((start, end, segment_translated))
+            
+            current_phrase = []
+            current_phrase_duration = 0
+    current_phrase = []
+    current_phrase_duration = 0
+    
+    return processed_translations
 
 def extract_audio(video_path):
     print(f"Extraindo áudio de: {video_path}")
@@ -36,64 +102,84 @@ def extract_audio(video_path):
     audio.write_audiofile("temp_audio.wav")
     return "temp_audio.wav"
 
-def find_optimal_silence_threshold(audio_path, min_silence_len=1000, step=-1):
+def find_optimal_silence_threshold(audio_path, min_silence_len=400):
+    # Use only the first 5 chunks (or less if there are fewer chunks)
     audio = AudioSegment.from_wav(audio_path)
+
+    audio_trimmed = audio[:50000]
+  
     best_ratio_diff = float('inf')
     best_threshold = None
     best_ratio = 0
 
     last_valid_threshold = None  # To track the last valid threshold
 
-    for threshold in range(-10, -60, step):  # Adjust range as needed
-        silences = detect_silence(audio, min_silence_len=min_silence_len, silence_thresh=threshold)
-        nonsilent = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=threshold)
+    threshold = -15
+    consecutive_no_improvement = 0
+    max_no_improvement = 5  # Maximum number of consecutive iterations without improvement
+
+    while threshold > -80:  # Adjust range as needed
+        print(f"Threshold: {threshold} dB")
+        silences = detect_silence(audio_trimmed, min_silence_len=min_silence_len, silence_thresh=threshold)
+        nonsilent = detect_nonsilent(audio_trimmed, min_silence_len=min_silence_len, silence_thresh=threshold)
         
         total_silence = sum(end - start for start, end in silences)
         total_nonsilent = sum(end - start for start, end in nonsilent)
         
         # Skip if no nonsilent segments are detected
         if total_nonsilent == 0:
+            threshold -= 1
             continue
         
         # Calculate the ratio only if total_silence is greater than zero
         if total_silence > 0:
             ratio = total_nonsilent / total_silence
-            ratio_diff = abs(ratio - 10)  # Adjust based on your target ratio
-            
+            ratio_diff = abs(ratio - 18) 
+                
             print(f"Threshold: {threshold} dB, Ratio (nonsilent/silent): {ratio:.2f}")
-            
             if ratio_diff < best_ratio_diff:
                 best_ratio_diff = ratio_diff
                 best_threshold = threshold
                 best_ratio = ratio
                 last_valid_threshold = threshold  # Update last valid threshold
-        else:
-            # If total_silence is zero, we can still consider the threshold
-            print(f"Threshold: {threshold} dB, No silence detected, ratio is undefined.")
-            if last_valid_threshold is not None and threshold < last_valid_threshold:
+                consecutive_no_improvement = 0  # Reset the counter
+                if ratio < 4:
+                    threshold -= 6
+                elif ratio < 8:
+                    threshold -= 4
+                elif ratio < 12:
+                    threshold -= 3
+                elif ratio < 15:
+                    threshold -= 2
+                elif ratio < 18:
+                    threshold -= 1
+                else:
+                    threshold -= 0.5  # Smaller step when close to target
+            else:
+                consecutive_no_improvement += 1
+                threshold -= 2  # Smaller step when no improvement
+            
+            if consecutive_no_improvement >= max_no_improvement:
                 print(f"\nBest threshold: {best_threshold} dB with ratio: {best_ratio:.2f}")
                 return best_threshold
+        else:
+            threshold -= 1
 
-    # Final check to return the best threshold found
+    # If we've exhausted the threshold range without finding an optimal value
     if best_threshold is not None:
-        print(f"\nBest threshold: {best_threshold} dB with ratio: {best_ratio:.2f}")
+        print(f"\nBest threshold found: {best_threshold} dB with ratio: {best_ratio:.2f}")
+        return best_threshold
     else:
-        print("\nNo valid threshold found.")
-    
-    return best_threshold
+        print("\nNo suitable threshold found.")
+        return -30  # Return a default value if no suitable threshold was found
 
 def segment_audio(audio_path, min_silence_len=600, silence_thresh=None, max_chunk_duration=15000, update_progress=None):
     audio = AudioSegment.from_wav(audio_path)
-
-    # Definir o limiar de silêncio com base na média de dBFS
-    if silence_thresh is None:  # Verifique se silence_thresh é None
-        silence_thresh = find_optimal_silence_threshold(audio) # Ajuste conforme necessário
-    print(f"Silence threshold set to: {silence_thresh} dBFS")
     
     total_duration = len(audio)
     chunks = []
-    
-    nonsilent_ranges = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh)
+    print(f"Detectando silêncios...")
+    nonsilent_ranges = detect_nonsilent(audio, min_silence_len, silence_thresh)
     print(f"Debug: detect_nonsilent returned {len(nonsilent_ranges)} ranges")
     print(f"{(nonsilent_ranges)}")
 
@@ -126,25 +212,17 @@ def transcribe_audio(audio_chunk):
     os.remove("temp_chunk.wav")
     return transcription
 
-def detect_language(text):
-    try:
-        return detect(text)
-    except:
-        print("Não foi possível detectar o idioma. Assumindo inglês.")
-        return 'en'
-
-def translate_to_english(text, source_lang):
-    translator = GoogleTranslator(source=source_lang, target='en')
-    return translator.translate(text)
-
-def translate_to_target(text, target_lang):
-    translator = GoogleTranslator(source='en', target=target_lang)
-    return translator.translate(text)
-
-def refine_translation(translation, prev_chunk, next_chunk):
-    prompt = f"You are creating a subtitle chunk. This is the previous and subsequent context of this chunk, respectively: {prev_chunk} and {next_chunk}. Considering the context, refine this translation, improving fluency and coherence: {translation}. Translate only this segment trying to keep it as faithful to the original sentence as possible. Be aware that the text is coming from a video, so it may contain some errors and you might have to correct ponctuation and grammar."
-    refined = nlp(prompt, max_length=100, do_sample=False)[0]['generated_text']
-    return refined
+def detect_language(transcriptions):
+    print(f"Detectando idioma...")
+    sample_texts = [t[2] for t in transcriptions[:2500]]
+    # Combine the texts, separating them with spaces
+    combined_text = " ".join(sample_texts)
+    print(f"Combined text: {combined_text}")
+    # Detect the language of the combined text
+    detected_lang, _ = langid.classify(combined_text)
+    
+    print(f"Detected language: {detected_lang}")
+    return detected_lang
 
 def format_time(milliseconds):
     seconds, milliseconds = divmod(int(milliseconds), 1000)
@@ -152,7 +230,7 @@ def format_time(milliseconds):
     hours, minutes = divmod(minutes, 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
 
-def split_long_text(text, max_chars=50):
+def split_long_text(text, max_chars=60):
     words = text.split()
     lines = []
     current_line = []
@@ -168,7 +246,7 @@ def split_long_text(text, max_chars=50):
         lines.append(' '.join(current_line))
     return lines
 
-def create_srt(translations, output_file, max_duration=5000, max_chars=60, min_silence_len=500):
+def create_srt(translations, output_file, max_chars=60, min_silence_len=500):
     print(f"Criando arquivo SRT: {output_file}")
     with open(output_file, "w", encoding="utf-8") as srt_file:
         subtitle_index = 1
@@ -193,86 +271,26 @@ def create_srt(translations, output_file, max_duration=5000, max_chars=60, min_s
                 srt_file.write(f"{line}\n\n")
                 subtitle_index += 1
 
-def get_context(chunks, current_index, context_size):
-    start = max(0, current_index - context_size)
-    end = min(len(chunks), current_index + context_size + 1)
-    return chunks[start:end]
-
-def check_consistency(current_chunk, prev_chunk, next_chunk, target_lang):
-    full_text = f"{prev_chunk} [SEP] {current_chunk} [SEP] {next_chunk}"
-    
-    inputs = tokenizer(full_text, return_tensors="pt", truncation=True, max_length=512)
-    
-    with torch.no_grad():
-        outputs = model(**inputs)
-    
-    loss = outputs.loss
-    perplexity = safe_exp(loss)
-    
-    threshold = 10
-    
-    if perplexity > threshold:
-        print(f"Possível inconsistência detectada em {target_lang}. Perplexidade: {perplexity.item()}")
-        return True
-    return False
-
-def process_translations(translations, source_lang, target_lang):
-    processed_translations = []
-    for i, (start, end, text) in enumerate(translations):
-        prev_chunk = translations[i-1][2] if i > 0 else ""
-        next_chunk = translations[i+1][2] if i < len(translations) - 1 else ""
-        
-        text_en = translate_to_english(text, source_lang)
-        prev_chunk_en = translate_to_english(prev_chunk, source_lang) if prev_chunk else ""
-        next_chunk_en = translate_to_english(next_chunk, source_lang) if next_chunk else ""
-        
-        if check_consistency(text_en, prev_chunk_en, next_chunk_en, 'en'):
-            print(f"Inconsistência detectada no trecho: {text}")
-            
-            refined_text_en = refine_translation(text_en, prev_chunk_en, next_chunk_en)
-            
-            print(f"Texto original em inglês: {text_en}")
-            print(f"Texto refinado em inglês: {refined_text_en}")
-            
-            if check_consistency(refined_text_en, prev_chunk_en, next_chunk_en, 'en'):
-                print("O texto refinado ainda apresenta inconsistências. Mantendo o original.")
-                final_text = text
-            else:
-                final_text = translate_to_target(refined_text_en, target_lang)
-                print(f"Texto refinado traduzido para {target_lang}: {final_text}")
-                print("Texto refinado aceito.")
-        else:
-            final_text = text
-        
-        processed_translations.append((start, end, final_text))
-    
-    return processed_translations
-
-def safe_exp(input_tensor):
-    if input_tensor is None:
-        return torch.tensor(0.0)
-    return torch.exp(input_tensor)
-
-def main(video_path, output_srt, context_size, target_lang, min_silence_len, update_progress=None, update_output=None):
-    print(f"Vídeo Selecionado: {video_path}, Tamanho do Contexto da Tradução: {context_size}, Velocidade da fala: {min_silence_len}, Idioma alvo: {target_lang}")
+def main(video_path, output_srt, target_lang, min_silence_len=400, silence_thresh=None, update_progress=None, update_output=None):
+    print("Iniciando a função main...")
+    print(f"Vídeo Selecionado: {video_path}, Velocidade da fala: {min_silence_len}, Idioma alvo: {target_lang}")
     try:
-        if context_size < 0 or context_size > 10:
-            raise ValueError("O tamanho do contexto deve estar entre 0 e 10.")
-
         if update_output:
             update_output("Extraindo audio...")
         audio_path = extract_audio(video_path)
-        
+    
+        if silence_thresh is None:
+            if update_output:
+                update_output("Determinando o melhor limiar de silêncio...")
+            silence_thresh = find_optimal_silence_threshold(
+                audio_path,  
+                min_silence_len=min_silence_len,
+            )
+        audio_chunks = segment_audio(audio_path, min_silence_len=min_silence_len, silence_thresh=silence_thresh, max_chunk_duration=15000, update_progress=update_progress)
         if update_output:
-            update_output("Determinando o melhor limiar de silêncio...")
-        optimal_threshold = find_optimal_silence_threshold(audio_path, min_silence_len=min_silence_len)
-        
-        if update_output:
-            update_output(f"Segmentando audio com limiar de {optimal_threshold} dB...")
-        audio_chunks = segment_audio(audio_path, min_silence_len=min_silence_len, silence_thresh=optimal_threshold, max_chunk_duration=15000, update_progress=update_progress)
+            update_output(f"Segmentando audio com limiar de {silence_thresh} dB...")
         
         transcriptions = []
-        translations = []
         
         total_chunks = len(audio_chunks)
         
@@ -285,36 +303,22 @@ def main(video_path, output_srt, context_size, target_lang, min_silence_len, upd
             transcription = transcribe_audio(chunk)
             end_time = start_time + len(chunk)
             transcriptions.append((start_time, end_time, transcription))
-        
-        for i, (start_time, end_time, current_chunk) in enumerate(transcriptions):
+        source_lang = detect_language(transcriptions)
+        target_lang = normalize_lang_code(target_lang)
+        source_lang = normalize_lang_code(source_lang)
+
+        print(f"Idioma detectado: {source_lang}")
+        for i, (start_time, end_time, transcription) in enumerate(transcriptions):
             if update_output:
                 update_output(f"Traduzindo segmento {i+1}/{total_chunks}")
             if update_progress:
                 progress = 65 + int((i / total_chunks) * 35)
                 update_progress(progress)
+        processed_translations = process_translations(transcriptions, source_lang, target_lang)
 
-            context_chunks = get_context(transcriptions, i, context_size)
-            context_window = " ".join([c[2] for c in context_chunks])
-
-            source_lang = detect_language(context_window)
-
-            if source_lang != 'en':
-                translated_window = translate_to_english(context_window, source_lang)
-            else:
-                translated_window = context_window
-
-            current_chunk_translation = translate_to_target(
-                translate_to_english(current_chunk, source_lang) if source_lang != 'en' else current_chunk, 
-                target_lang
-            )
-
-            translations.append((start_time, end_time, current_chunk_translation))
-        
-        if not translations:
+        if not processed_translations:
             print("Nenhuma tradução foi gerada!")
             return
-        
-        processed_translations = process_translations(translations, source_lang, target_lang)
         
         if update_output:
             update_output("Criando arquivo SRT...")
@@ -334,8 +338,10 @@ def main(video_path, output_srt, context_size, target_lang, min_silence_len, upd
             update_output(f"Erro: {str(e)}")
 
 if __name__ == "__main__":
-    video_path = "/Users/marcelofrayha/Downloads/Novas imagens： Câmera flagra queda de helicóptero em Pernambuco ｜ Primeiro Impacto (10⧸09⧸24).mp4"
+    print("Iniciando a execução principal...")
+    video_path = "/Users/marcelofrayha/Downloads/(PHASE 1) - Anonymous Testimony Of An American Physician PART 14.mp4"
     output_srt = "legendas_traduzidas.srt"
-    context_size = int(input("Digite o tamanho do contexto (0-10): "))
     target_lang = input("Digite o idioma alvo (ex: pt, es, fr): ")
-    main(video_path, output_srt, target_lang, context_size)
+    silence_thresh = input("Digite o limiar de silêncio em dB (ou pressione Enter para detectar automaticamente): ")
+    silence_thresh = float(silence_thresh) if silence_thresh else None
+    main(video_path, output_srt, target_lang, min_silence_len=400, silence_thresh=silence_thresh)
